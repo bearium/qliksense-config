@@ -11,4 +11,4 @@ spec:
   - namespace: qliksense
     server: https://kubernetes.default.svc
   sourceRepos:
-  - https://github.com/qlik-oss/qliksense.git
+  - https://github.com/qlik-trial/qliksense-qlikconfig.git
