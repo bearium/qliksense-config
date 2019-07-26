@@ -4,3 +4,4 @@ generators:
   - generators
 patchesStrategicMerge:
   - redis-secret.yaml
+  - s2sJWT.yaml

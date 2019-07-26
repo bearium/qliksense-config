@@ -1,0 +1,17 @@
+apiVersion: qlik.com/v1
+kind: HelmValues
+metadata:
+  name: qliksense
+values:
+  collections:
+    config:
+      messaging:
+        nats:
+          tokenAuth:
+            privateKey: |
+              -----BEGIN EC PRIVATE KEY-----
+              MIGkAgEBBDBKPV0yFCreja79W1krQslS0VOWUU/4aH8LneCDzF/oSypFfTtgLJ5Q
+              5sYYVx7sjwKgBwYFK4EEACKhZANiAASCHasQzU1WjrXXKpJjYcmRpnNyXKtS5gWG
+              xFQFMJdISUqKPjwT1XoAvG7LxqkqL4j6xTlj0HGgihV0DvUsduy3TTi1D+2FgZfJ
+              i1iYZrFKvVd7X4mnjv84sPZp86HAgck=
+              -----END EC PRIVATE KEY-----

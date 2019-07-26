@@ -3,4 +3,4 @@ kind: HelmValues
 metadata:
   name: qliksense 
 values:
-  acceptEULA: "no"
+  acceptEULA: "yes"
