@@ -16,3 +16,5 @@ spec:
             ouRsRM/wkAb+OlMAsyFZCuEgtDF14G/2RY4gepUkARBFCgEO0E3WarSEHQMS26pN
             fkRHHEUAaOvT6vP4+BqgQmh+0MbStKI=
             -----END EC PRIVATE KEY-----
+        - name: TOKEN_AUTH_KID
+          value: "V5uEI2x2sYjIq0Ezz7NlqoExS1Y4dvwhdt3iakflxGY"
