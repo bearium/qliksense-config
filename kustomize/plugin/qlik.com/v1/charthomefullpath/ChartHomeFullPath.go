@@ -67,13 +67,17 @@ func GetFieldValue(obj ifc.Kunstructured, fieldName string) string {
 }
 
 // copy source file to destination location
-func copyFile(source string, dest string) (err error) {
-
+func copyFile(source string, dest string) error {
 	sourceFile, err := os.Open(source)
-
+	if err != nil {
+		return err
+	}
 	defer sourceFile.Close()
 
 	destinationFile, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
 
 	defer destinationFile.Close()
 
@@ -82,13 +86,23 @@ func copyFile(source string, dest string) (err error) {
 		sourceinfo, err := os.Stat(source)
 		if err != nil {
 			err = os.Chmod(dest, sourceinfo.Mode())
+			return err
 		}
 	}
-	return
+	return nil
 }
 
 //copy source directory to destination
 func copyDir(source string, dest string) {
+	sourceinfo, err := os.Stat(source)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	err = os.MkdirAll(dest, sourceinfo.Mode())
+	if err != nil {
+		fmt.Println(err)
+	}
 
 	sourceDirectory, _ := os.Open(source)
 	// read everything within source directory
@@ -104,7 +118,10 @@ func copyDir(source string, dest string) {
 		if obj.IsDir() {
 			copyDir(sourceFileName, destinationFileName)
 		} else {
-			copyFile(sourceFileName, destinationFileName)
+			err := copyFile(sourceFileName, destinationFileName)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 
 	}
