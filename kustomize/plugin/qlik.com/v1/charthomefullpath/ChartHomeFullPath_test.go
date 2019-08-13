@@ -29,7 +29,7 @@ func TestDatePrefixerPlugin(t *testing.T) {
 
 	tc.BuildGoPlugin(
 		"qlik.com", "v1", "ChartHomeFullPath")
-	th := kusttest_test.NewKustTestPluginHarness(t, "/app")
+	th := kusttest_test.NewKustTestPluginHarness(t, "/")
 
 	// make temp directory chartHome
 	m := th.LoadAndRunTransformer(`
@@ -53,7 +53,7 @@ releaseName: qliksense
 		require.NoError(t, err)
 	}
 
-	require.Equal(t, dir, chartHome)
+	require.NotEqual(t, dir, chartHome)
 
 	//open modified directory
 	directory, err := os.Open(chartHome)
