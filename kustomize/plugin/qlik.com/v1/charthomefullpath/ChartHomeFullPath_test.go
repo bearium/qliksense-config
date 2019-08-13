@@ -53,7 +53,7 @@ releaseName: qliksense
 		require.NoError(t, err)
 	}
 
-	require.NotEqual(t, dir, chartHome)
+	require.Equal(t, dir, chartHome)
 
 	//open modified directory
 	directory, err := os.Open(chartHome)

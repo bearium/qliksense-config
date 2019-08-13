@@ -5,17 +5,21 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"sigs.k8s.io/kustomize/v3/pkg/ifc"
 	"sigs.k8s.io/kustomize/v3/pkg/resmap"
 	"sigs.k8s.io/kustomize/v3/pkg/transformers"
+	"sigs.k8s.io/kustomize/v3/pkg/transformers/config"
 	"sigs.k8s.io/yaml"
 )
 
 type plugin struct {
-	ChartHome string `json:"chartHome,omitempty" yaml:"chartHome,omitempty"`
-	ChartName string
-	Kind      string
+	ChartHome  string             `json:"chartHome,omitempty" yaml:"chartHome,omitempty"`
+	FieldSpecs []config.FieldSpec `json:"fieldSpecs,omitempty" yaml:"fieldSpecs,omitempty"`
+	Root       string
+	ChartName  string
+	Kind       string
 }
 
 //nolint: golint noinspection GoUnusedGlobalVariable
@@ -23,6 +27,7 @@ var KustomizePlugin plugin
 
 func (p *plugin) Config(
 	ldr ifc.Loader, rf *resmap.Factory, c []byte) (err error) {
+	p.Root = ldr.Root()
 	return yaml.Unmarshal(c, p)
 }
 
@@ -37,12 +42,17 @@ func (p *plugin) mutate(in interface{}) (interface{}, error) {
 		return nil, err
 	}
 	if p.Kind == "HelmChart" {
-		copyDir(p.ChartHome, directory)
+		err := copyDir(p.ChartHome, directory)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return directory, nil
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
+	//join the root(root of kustomize file) + location to chartHome
+	p.ChartHome = path.Join(p.Root, p.ChartHome)
 	for _, r := range m.Resources() {
 		p.ChartName = GetFieldValue(r, "chartName")
 		p.Kind = GetFieldValue(r, "kind")
@@ -93,17 +103,16 @@ func copyFile(source string, dest string) error {
 }
 
 //copy source directory to destination
-func copyDir(source string, dest string) {
+func copyDir(source string, dest string) error {
 	sourceinfo, err := os.Stat(source)
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
 
 	err = os.MkdirAll(dest, sourceinfo.Mode())
 	if err != nil {
-		fmt.Println(err)
+		return err
 	}
-
 	sourceDirectory, _ := os.Open(source)
 	// read everything within source directory
 	objects, _ := sourceDirectory.Readdir(-1)
@@ -116,14 +125,17 @@ func copyDir(source string, dest string) {
 		destinationFileName := dest + "/" + obj.Name()
 
 		if obj.IsDir() {
-			copyDir(sourceFileName, destinationFileName)
+			err := copyDir(sourceFileName, destinationFileName)
+			if err != nil {
+				return err
+			}
 		} else {
 			err := copyFile(sourceFileName, destinationFileName)
 			if err != nil {
-				fmt.Println(err)
+				return err
 			}
 		}
 
 	}
-
+	return nil
 }
