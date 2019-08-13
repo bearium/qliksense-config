@@ -11,7 +11,7 @@ import (
 	plugins_test "sigs.k8s.io/kustomize/v3/pkg/plugins/test"
 )
 
-func TestDatePrefixerPlugin(t *testing.T) {
+func TestChartHomeFullPathPlugin(t *testing.T) {
 	tc := plugins_test.NewEnvForTest(t).Set()
 	defer tc.Reset()
 
