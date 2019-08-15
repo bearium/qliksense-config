@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 
 	"os/exec"
@@ -50,13 +51,11 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	if err != nil {
 		return nil, err
 	}
+	dir = path.Join(dir, "../")
+
 	if p.HelmHome == "" || p.HelmHome == "null" {
 		// make home for helm stuff
 		directory := fmt.Sprintf("%s/%s", dir, "dotHelm")
-		err := os.Mkdir(directory, 0777)
-		if err != nil {
-			return nil, err
-		}
 		p.HelmHome = directory
 	}
 
@@ -100,20 +99,22 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 
 	err = p.initHelm()
 	if err != nil {
+		fmt.Println("here1")
 		return nil, err
 	}
 	if _, err := os.Stat(p.ChartHome); os.IsNotExist(err) {
 		err = p.fetchHelm()
 		if err != nil {
+			fmt.Println("here3")
 			return nil, err
 		}
 	}
 
 	templatedYaml, err := p.templateHelm()
 	if err != nil {
+		fmt.Println("here2")
 		return nil, err
 	}
-	fmt.Println("here")
 	return p.rf.NewResMapFromBytes(templatedYaml)
 }
 
@@ -170,6 +171,7 @@ func (p *plugin) templateHelm() ([]byte, error) {
 	helmCmd.Stderr = &stderr
 	err = helmCmd.Run()
 	if err != nil {
+		fmt.Println("here")
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return nil, err
 	}
