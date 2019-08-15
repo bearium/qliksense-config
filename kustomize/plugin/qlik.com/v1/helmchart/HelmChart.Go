@@ -63,10 +63,6 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	if len(p.ChartHome) == 0 || p.ChartHome == "null" {
 		// make home for chart stuff
 		directory := fmt.Sprintf("%s/%s", dir, p.ChartName)
-		err = os.Mkdir(directory, 0777)
-		if err != nil {
-			return nil, err
-		}
 		p.ChartHome = directory
 	}
 
