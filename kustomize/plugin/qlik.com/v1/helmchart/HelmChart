@@ -102,12 +102,12 @@ if [ ! -d "$chartHome" ]; then
       $chartVersionExp \
       $chartName
   mv $chartHome/$chartName $chartHome/$chartName-tmp
-  cp -a $chartHome/$chartName-tmp/. $chartHome/ 
+  cp -a $chartHome/$chartName-tmp/. $chartHome/
   rm -fr $chartHome/$chartName-tmp
 fi
 
 rm -f $chartHome/requirements.*
-## No longer need to build helm dependencies 
+## No longer need to build helm dependencies
 #doHelm dep build $chartHome >& /dev/null
 
 doHelm template \
@@ -135,7 +135,7 @@ if [ ! -z "$chartPatches" ] && [ "$chartPatches" != "null" ]; then
 
   cp "$chartHome/$chartPatches/kustomization.yaml" kustomization.orig.yaml
   count=0
-  while true; do 
+  while true; do
     cp helmoutput.yaml "$chartHome/$chartPatches"
     yq d -i "$chartHome/$chartPatches/kustomization.yaml" "patchesJson6902"
     yq d -i "$chartHome/$chartPatches/kustomization.yaml" "resources"
@@ -144,7 +144,7 @@ if [ ! -z "$chartPatches" ] && [ "$chartPatches" != "null" ]; then
       echo "$patch" | yq p - patchesJson6902[+] | yq m -i "$chartHome/$chartPatches/kustomization.yaml" -
     else
       break
-    fi 
+    fi
     yq w -i "$chartHome/$chartPatches/kustomization.yaml" "resources[+]" "helmoutput.yaml"
     out=$(kustomize build "$chartHome/$chartPatches" 2> /dev/null) && echo "$out" > helmoutput.yaml
     count=$(expr $count + 1)
