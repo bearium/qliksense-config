@@ -1,17 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 
-	"k8s.io/helm/pkg/helm/helmpath"
+	"os/exec"
 
-	"k8s.io/helm/pkg/chartutil"
-	"k8s.io/helm/pkg/downloader"
-	"k8s.io/helm/pkg/getter"
-	"k8s.io/helm/pkg/helm/environment"
-	"k8s.io/helm/pkg/repo"
 	"sigs.k8s.io/kustomize/v3/pkg/ifc"
 	"sigs.k8s.io/kustomize/v3/pkg/resmap"
 	"sigs.k8s.io/yaml"
@@ -56,12 +52,21 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	if p.HelmHome == "" || p.HelmHome == "null" {
 		// make home for helm stuff
 		directory := fmt.Sprintf("%s/%s", dir, "dotHelm")
-		err = os.Mkdir(directory, 0777)
+		err := os.Mkdir(directory, 0777)
+		if err != nil {
+			return nil, err
+		}
+		p.HelmHome = directory
 	}
-	if p.ChartHome == "" || p.ChartHome == "null" {
-		// make home for helm stuff
+
+	if len(p.ChartHome) == 0 || p.ChartHome == "null" {
+		// make home for chart stuff
 		directory := fmt.Sprintf("%s/%s", dir, p.ChartName)
 		err = os.Mkdir(directory, 0777)
+		if err != nil {
+			return nil, err
+		}
+		p.ChartHome = directory
 	}
 
 	if p.HelmBin == "" || p.HelmBin == "null" {
@@ -69,13 +74,13 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	}
 
 	if len(p.ValuesFrom) > 0 && p.ValuesFrom != "null" {
-		p.ValuesFrom = fmt.Sprintf("--values %s", p.ValuesFrom)
+		p.ValuesFrom = fmt.Sprintf("--values=%s", p.ValuesFrom)
 	} else {
 		p.ValuesFrom = ""
 	}
 
 	if len(p.ChartVersion) > 0 && p.ChartVersion != "null" {
-		p.ChartVersionExp = fmt.Sprintf("--version %s", p.ChartVersion)
+		p.ChartVersionExp = fmt.Sprintf("--version=%s", p.ChartVersion)
 	} else {
 		p.ChartVersionExp = ""
 	}
@@ -92,58 +97,106 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 		p.ReleaseName = "default"
 	}
 
-	if p.ExtraArgs == "" || p.ExtraArgs == "null" {
+	if len(p.ExtraArgs) < 0 || p.ExtraArgs == "null" {
 		p.ExtraArgs = ""
 	}
-	ud, err := p.fetch()
+
+	err = p.initHelm()
 	if err != nil {
-		fmt.Println("here")
 		return nil, err
 	}
-	fmt.Println(ud)
-	return p.rf.FromFile(p.ldr, ud)
-}
-
-func (p *plugin) fetch() (string, error) {
-	fmt.Println(p.HelmHome)
-	c := downloader.ChartDownloader{
-		HelmHome: helmpath.Home(p.HelmHome),
-		Out:      nil,
-		Keyring:  defaultKeyring(),
-		Verify:   downloader.VerifyNever,
-		Getters: getter.All(environment.EnvSettings{
-			Home: helmpath.Home(p.HelmHome),
-		}),
-	}
-
-	dest, err := ioutil.TempDir("", "helm-")
-	if err != nil {
-		return "", fmt.Errorf("Failed to untar: %s", err)
-	}
-	defer os.RemoveAll(dest)
-	fmt.Println(p.ChartRepo)
-	chartURL, err := repo.FindChartInAuthRepoURL(p.ChartRepo, "", "", p.ChartName, p.ChartVersionExp, "", "", "", c.Getters)
-	if err != nil {
-		return "", err
-	}
-
-	saved, _, err := c.DownloadTo(chartURL, p.ChartVersionExp, dest)
-	if err != nil {
-		return "", err
-	}
-
-	ud := p.ChartHome
-	if fi, err := os.Stat(ud); err != nil {
-		if err := os.MkdirAll(ud, 0755); err != nil {
-			return "", fmt.Errorf("Failed to untar (mkdir): %s", err)
+	if _, err := os.Stat(p.ChartHome); os.IsNotExist(err) {
+		err = p.fetchHelm()
+		if err != nil {
+			return nil, err
 		}
-
-	} else if !fi.IsDir() {
-		return "", fmt.Errorf("Failed to untar: %s is not a directory", ud)
 	}
-	return ud, chartutil.ExpandFile(ud, saved)
+
+	templatedYaml, err := p.templateHelm()
+	if err != nil {
+		return nil, err
+	}
+
+	return p.rf.NewResMapFromBytes(templatedYaml)
 }
 
-func defaultKeyring() string {
-	return os.ExpandEnv("$HOME/.gnupg/pubring.gpg")
+func (p *plugin) initHelm() error {
+	home := fmt.Sprintf("--home=%s", p.HelmHome)
+	helmCmd := exec.Command(p.HelmBin, "init", home, "--client-only")
+	err := helmCmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *plugin) fetchHelm() error {
+	home := fmt.Sprintf("--home=%s", p.HelmHome)
+	untarDir := fmt.Sprintf("--untardir=%s", p.ChartHome)
+	repo := fmt.Sprintf("--repo=%s", p.ChartName)
+	helmCmd := exec.Command("helm", "fetch", home, "--untar", untarDir, repo, p.ChartVersionExp, p.ChartName)
+	err := helmCmd.Run()
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	helmCmd.Stdout = &out
+	helmCmd.Stderr = &stderr
+	if err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func (p *plugin) templateHelm() ([]byte, error) {
+
+	valuesYaml, err := yaml.Marshal(p.Values)
+	if err != nil {
+		return nil, err
+	}
+	file, err := ioutil.TempFile("", "yaml")
+	if err != nil {
+		return nil, err
+	}
+	_, err = file.Write(valuesYaml)
+	if err != nil {
+		return nil, err
+	}
+
+	home := fmt.Sprintf("--home=%s", p.HelmHome)
+	values := fmt.Sprintf("--values=%s", file.Name())
+	name := fmt.Sprintf("--name=%s", p.ReleaseName)
+	nameSpace := fmt.Sprintf("--namespace=%s", p.ReleaseNamespace)
+	helmCmd := exec.Command("helm", "template", home, values, name, nameSpace, p.ChartHome)
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	helmCmd.Stdout = &out
+	helmCmd.Stderr = &stderr
+	err = helmCmd.Run()
+	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+		return nil, err
+	}
+	fmt.Println(out.String())
+	return out.Bytes(), nil
+}
+
+func deleteDirectory(directory string) error {
+	dir, err := os.Open(directory)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	objs, err := dir.Readdirnames(-1)
+	if err != nil {
+		return err
+	}
+	for _, obj := range objs {
+		fmt.Println(obj)
+		// err = os.RemoveAll(filepath.Join(directory, obj))
+		// if err != nil {
+		// 	return err
+		// }
+	}
+	return nil
 }
