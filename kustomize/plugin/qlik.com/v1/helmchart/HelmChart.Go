@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"os/exec"
 
@@ -116,7 +117,7 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	fmt.Println("here")
 	return p.rf.NewResMapFromBytes(templatedYaml)
 }
 
@@ -176,7 +177,6 @@ func (p *plugin) templateHelm() ([]byte, error) {
 		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return nil, err
 	}
-	fmt.Println(out.String())
 	return out.Bytes(), nil
 }
 
@@ -193,10 +193,10 @@ func deleteDirectory(directory string) error {
 	}
 	for _, obj := range objs {
 		fmt.Println(obj)
-		// err = os.RemoveAll(filepath.Join(directory, obj))
-		// if err != nil {
-		// 	return err
-		// }
+		err = os.RemoveAll(filepath.Join(directory, obj))
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
