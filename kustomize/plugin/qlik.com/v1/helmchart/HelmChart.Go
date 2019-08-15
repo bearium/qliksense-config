@@ -1,16 +1,16 @@
-package helmchart
+package main
 
 import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 
-	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/helm/helmpath"
 
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/downloader"
 	"k8s.io/helm/pkg/getter"
+	"k8s.io/helm/pkg/helm/environment"
 	"k8s.io/helm/pkg/repo"
 	"sigs.k8s.io/kustomize/v3/pkg/ifc"
 	"sigs.k8s.io/kustomize/v3/pkg/resmap"
@@ -32,6 +32,8 @@ type plugin struct {
 	ExtraArgs        string                 `json:"extraArgs,omitempty" yaml:"extraArgs,omitempty"`
 	ChartPatches     string                 `json:"chartPatches,omitempty" yaml:"chartPatches,omitempty"`
 	ChartVersionExp  string
+	ldr              ifc.Loader
+	rf               *resmap.Factory
 }
 
 //nolint: go-lint noinspection GoUnusedGlobalVariable
@@ -39,15 +41,17 @@ var KustomizePlugin plugin
 
 func (p *plugin) Config(
 	ldr ifc.Loader, rf *resmap.Factory, c []byte) (err error) {
+	p.ldr = ldr
+	p.rf = rf
 	return yaml.Unmarshal(c, p)
 }
 
-func (p *plugin) Transform(m resmap.ResMap) error {
+func (p *plugin) Generate() (resmap.ResMap, error) {
 
 	// make temp directory
 	dir, err := ioutil.TempDir("", "tempRoot")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if p.HelmHome == "" || p.HelmHome == "null" {
 		// make home for helm stuff
@@ -91,56 +95,53 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 	if p.ExtraArgs == "" || p.ExtraArgs == "null" {
 		p.ExtraArgs = ""
 	}
-
-	for _, r := range m.Resources() {
-
+	ud, err := p.fetch()
+	if err != nil {
+		fmt.Println("here")
+		return nil, err
 	}
-	return nil
+	fmt.Println(ud)
+	return p.rf.FromFile(p.ldr, ud)
 }
 
-func (p *plugin) fetch() error {
-
-	client := helm.NewClient()
-
+func (p *plugin) fetch() (string, error) {
+	fmt.Println(p.HelmHome)
 	c := downloader.ChartDownloader{
+		HelmHome: helmpath.Home(p.HelmHome),
 		Out:      nil,
 		Keyring:  defaultKeyring(),
 		Verify:   downloader.VerifyNever,
-		Username: "",
-		Password: "",
+		Getters: getter.All(environment.EnvSettings{
+			Home: helmpath.Home(p.HelmHome),
+		}),
 	}
 
 	dest, err := ioutil.TempDir("", "helm-")
 	if err != nil {
-		return fmt.Errorf("Failed to untar: %s", err)
+		return "", fmt.Errorf("Failed to untar: %s", err)
 	}
 	defer os.RemoveAll(dest)
-
-	chartURL, err := repo.FindChartInAuthRepoURL(f.repoURL, f.username, f.password, f.chartRef, f.version, f.certFile, f.keyFile, f.caFile, getter.All(settings))
+	fmt.Println(p.ChartRepo)
+	chartURL, err := repo.FindChartInAuthRepoURL(p.ChartRepo, "", "", p.ChartName, p.ChartVersionExp, "", "", "", c.Getters)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	saved, v, err := c.DownloadTo(chartURL, p.ChartVersionExp, dest)
+	saved, _, err := c.DownloadTo(chartURL, p.ChartVersionExp, dest)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	if !filepath.IsAbs(p.ChartHome) {
-		ud = filepath.Join(f.destdir, p.ChartHome)
-	}
+	ud := p.ChartHome
 	if fi, err := os.Stat(ud); err != nil {
 		if err := os.MkdirAll(ud, 0755); err != nil {
-			return fmt.Errorf("Failed to untar (mkdir): %s", err)
+			return "", fmt.Errorf("Failed to untar (mkdir): %s", err)
 		}
 
 	} else if !fi.IsDir() {
-		return fmt.Errorf("Failed to untar: %s is not a directory", ud)
+		return "", fmt.Errorf("Failed to untar: %s is not a directory", ud)
 	}
-
-	return chartutil.ExpandFile(ud, saved)
-
-	return nil
+	return ud, chartutil.ExpandFile(ud, saved)
 }
 
 func defaultKeyring() string {
