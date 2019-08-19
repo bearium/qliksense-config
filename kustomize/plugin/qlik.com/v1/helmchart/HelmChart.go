@@ -178,7 +178,7 @@ func (p *plugin) templateHelm() ([]byte, error) {
 	values := fmt.Sprintf("--values=%s", file.Name())
 	name := fmt.Sprintf("--name=%s", p.ReleaseName)
 	nameSpace := fmt.Sprintf("--namespace=%s", p.ReleaseNamespace)
-	helmCmd := exec.Command("helm", "template", home, values, name, nameSpace, p.ChartHome)
+	helmCmd := exec.Command("helm", "template", home, p.ValuesFrom, values, name, nameSpace, p.ExtraArgs, p.ChartHome)
 
 	var out bytes.Buffer
 	helmCmd.Stdout = &out
