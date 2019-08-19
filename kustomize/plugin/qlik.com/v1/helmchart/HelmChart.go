@@ -71,12 +71,6 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 		p.HelmBin = "helm"
 	}
 
-	if len(p.ValuesFrom) > 0 && p.ValuesFrom != "null" {
-		p.ValuesFrom = fmt.Sprintf("--values=%s", p.ValuesFrom)
-	} else {
-		p.ValuesFrom = ""
-	}
-
 	if len(p.ChartVersion) > 0 && p.ChartVersion != "null" {
 		p.ChartVersionExp = fmt.Sprintf("--version=%s", p.ChartVersion)
 	} else {
@@ -93,10 +87,6 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 
 	if p.ReleaseNamespace == "" || p.ReleaseNamespace == "null" {
 		p.ReleaseName = "default"
-	}
-
-	if len(p.ExtraArgs) < 0 || p.ExtraArgs == "null" {
-		p.ExtraArgs = ""
 	}
 
 	err = p.initHelm()
@@ -178,7 +168,16 @@ func (p *plugin) templateHelm() ([]byte, error) {
 	values := fmt.Sprintf("--values=%s", file.Name())
 	name := fmt.Sprintf("--name=%s", p.ReleaseName)
 	nameSpace := fmt.Sprintf("--namespace=%s", p.ReleaseNamespace)
-	helmCmd := exec.Command("helm", "template", home, p.ValuesFrom, values, name, nameSpace, p.ExtraArgs, p.ChartHome)
+	helmCmd := exec.Command("helm", "template", home, values, name, nameSpace, p.ChartHome)
+
+	if len(p.ExtraArgs) > 0 && p.ExtraArgs != "null" {
+		helmCmd.Args = append(helmCmd.Args, p.ExtraArgs)
+	}
+
+	if len(p.ValuesFrom) > 0 && p.ValuesFrom != "null" {
+		templatedValues := fmt.Sprintf("--values=%s", p.ValuesFrom)
+		helmCmd.Args = append(helmCmd.Args, templatedValues)
+	}
 
 	var out bytes.Buffer
 	helmCmd.Stdout = &out
