@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/sense-client//generators
+  - github.com/qlik-oss/sense-client-app//generators

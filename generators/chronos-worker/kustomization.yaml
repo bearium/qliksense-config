@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/chronos-worker//generators
+  - github.com/qlik-oss/chronos-worker-app//generators

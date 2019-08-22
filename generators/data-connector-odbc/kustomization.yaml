@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/data-connector-odbc//generators
+  - github.com/qlik-oss/data-connector-odbc-app//generators
