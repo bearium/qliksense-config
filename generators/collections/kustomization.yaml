@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/collections//generators
+  - github.com/qlik-oss/collections-app//generators
