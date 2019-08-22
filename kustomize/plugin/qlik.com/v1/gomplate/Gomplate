@@ -1,0 +1,52 @@
+#!/bin/bash
+set -e
+
+file=$1
+
+dataSource=""
+vaultDataSource=`yq r "$file" dataSource.vault`
+ejsonDataSource=`yq r "$file" dataSource.ejson`
+
+if [[ "${vaultDataSource}" != "null" ]]; then
+  vaultAddressPath=$(echo $(eval echo $(yq r "$file" dataSource.vault.addressPath)))
+  vaultTokenPath=$(echo $(eval echo $(yq r "$file" dataSource.vault.tokenPath)))
+
+  if [[ ! -z "$vaultAddressPath" ]] || [[ "$vaultAddressPath" != "null" ]] && [[ -f ${vaultAddressPath} ]]; then
+    export VAULT_ADDR=$(cat ${vaultAddressPath})
+  fi
+
+  if [[ ! -z "$vaultTokenPath" ]] || [[ "$vaultTokenPath" != "null" ]] && [[ -f ${vaultTokenPath} ]]; then
+    export VAULT_TOKEN=$(cat ${vaultTokenPath})
+  fi
+fi
+
+if [[ "${ejsonDataSource}" != "null" ]]; then
+  ejsonPrivateKeyPath=$(echo $(eval echo $(yq r "$file" dataSource.ejson.privateKeyPath)))
+  if [[ ! -z "${ejsonPrivateKeyPath}" ]] || [[ "${ejsonPrivateKeyPath}" != "null" ]] && [[ -f "$ejsonPrivateKeyPath" ]]; then
+     export EJSON_KEY=$(cat "$ejsonPrivateKeyPath")
+  fi
+fi
+
+if [[ ! -z $EJSON_KEY ]]; then
+  dataSource=`yq r "$file" dataSource.ejson.filePath`
+elif [[ ! -z $VAULT_ADDR ]] && [[ ! -z $VAULT_TOKEN ]]; then
+  dataSource=`yq r "$file" dataSource.vault.secretPath`
+else
+  exit 1
+fi
+
+index=0
+errno=0
+TMP_DIR=$(mktemp -d)
+
+allresources=`cat`
+echo "$allresources" | yq r -d $index - &>$TMP_DIR/allresources.tmpl.yaml || errno=$?
+if [ $errno -ne 0 ]; then
+  echo "Not a valid yaml file"
+  exit 1
+fi
+
+gomplate --left-delim="((" --right-delim="))" -d data=${dataSource} -f ${TMP_DIR}/allresources.tmpl.yaml -o ${TMP_DIR}/allresources.yaml
+allresources=$(cat ${TMP_DIR}/allresources.yaml)
+rm -rf ${TMP_DIR}
+echo "$allresources" | yq r -d $index -
