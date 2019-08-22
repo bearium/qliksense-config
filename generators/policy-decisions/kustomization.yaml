@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/policy-decisions//generators
+  - github.com/qlik-oss/policy-decisions-app//generators

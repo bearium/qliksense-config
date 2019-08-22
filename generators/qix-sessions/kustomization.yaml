@@ -3,4 +3,4 @@ kind: Kustomization
 transformers:
   - ../../values
 resources:
-  - github.com/qlik-oss/qix-sessions//generators
+  - github.com/qlik-oss/qix-sessions-app//generators
