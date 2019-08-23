@@ -99,10 +99,10 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 
 func runGomplate(dataSource interface{}, pwd string, dir string) ([]byte, error) {
 	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
-	data := fmt.Sprintf("-d data=%s", dataLocation)
+	data := fmt.Sprintf("--datasource data=%s", dataLocation)
 	from := fmt.Sprintf("-f %s/allresources.tmpl.yaml", dir)
 	out := fmt.Sprintf("-o %s/allresources.yaml", dir)
-	gomplateCmd := exec.Command("gomplate", `--left-delim="((" --right-delim="))"`, data, from, out)
+	gomplateCmd := exec.Command("gomplate", `--left-delim='(('`, `--right-delim='))'`, data, from, out)
 	fmt.Println(gomplateCmd.Args)
 	err := gomplateCmd.Run()
 	var stderr bytes.Buffer
