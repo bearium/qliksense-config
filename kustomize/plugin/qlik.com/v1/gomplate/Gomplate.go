@@ -1,12 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"reflect"
+	"path/filepath"
 
 	"sigs.k8s.io/kustomize/v3/pkg/ifc"
 	"sigs.k8s.io/kustomize/v3/pkg/resmap"
@@ -15,6 +16,7 @@ import (
 
 type plugin struct {
 	DataSource map[string]interface{} `json:"dataSource,omitempty" yaml:"dataSource,omitempty"`
+	Pwd        string
 	ldr        ifc.Loader
 	rf         *resmap.Factory
 }
@@ -26,37 +28,38 @@ func (p *plugin) Config(
 	ldr ifc.Loader, rf *resmap.Factory, c []byte) (err error) {
 	p.ldr = ldr
 	p.rf = rf
+	p.Pwd = ldr.Root()
 	return yaml.Unmarshal(c, p)
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
-	var vaultAddressPath, vaultTokenPath string
-	if !reflect.ValueOf(p.DataSource["vault"]).IsNil() {
-		vaultAddressPath = p.DataSource["vault"].(map[string]string)["addressPath"]
-		vaultTokenPath = p.DataSource["vault"].(map[string]string)["tokenPath"]
+	var vaultAddressPath, vaultTokenPath interface{}
+	if p.DataSource["vault"] != nil {
+		vaultAddressPath = p.DataSource["vault"].(map[string]interface{})["addressPath"]
+		vaultTokenPath = p.DataSource["vault"].(map[string]interface{})["tokenPath"]
 
 		if vaultAddressPath != "" {
-			os.Setenv("VAULT_ADDR", vaultAddressPath)
+			os.Setenv("VAULT_ADDR", fmt.Sprintf("%v", vaultAddressPath))
 		}
 		if vaultTokenPath != "" {
-			os.Setenv("VAULT_TOKEN", vaultTokenPath)
+			os.Setenv("VAULT_TOKEN", fmt.Sprintf("%v", vaultTokenPath))
 		}
 	}
 
-	var ejsonPrivateKeyPath string
-	if !reflect.ValueOf(p.DataSource["ejson"]).IsNil() {
-		ejsonPrivateKeyPath = p.DataSource["ejson"].(map[string]string)["privateKeyPath"]
+	var ejsonPrivateKeyPath interface{}
+	if p.DataSource["ejson"] != nil {
+		ejsonPrivateKeyPath = p.DataSource["ejson"].(map[string]interface{})["privateKeyPath"]
 
 		if ejsonPrivateKeyPath != "" {
-			os.Setenv("EJSON_KEY", ejsonPrivateKeyPath)
+			os.Setenv("EJSON_KEY", fmt.Sprintf("%v", ejsonPrivateKeyPath))
 		}
 	}
 
-	var dataSource string
+	var dataSource interface{}
 	if os.Getenv("EJSON_KEY") != "" {
-		dataSource = "temp"
+		dataSource = p.DataSource["ejson"].(map[string]interface{})["filePath"]
 	} else if os.Getenv("VAULT_ADDR") != "" && os.Getenv("VAULT_TOKEN ") != "" {
-		dataSource = "temp"
+		dataSource = p.DataSource["vault"].(map[string]interface{})["secretPath"]
 	} else {
 		return errors.New("exit 1")
 	}
@@ -72,6 +75,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
+		fmt.Println(string(yamlByte))
 		file, err := os.Create(dir + "/allresources.tmpl.yaml")
 		if err != nil {
 			return err
@@ -80,7 +84,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
-		output, err := runGomplate(dataSource, dir)
+		output, err := runGomplate(dataSource, p.Pwd, dir)
 		if err != nil {
 			return err
 		}
@@ -93,14 +97,19 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 	return nil
 }
 
-func runGomplate(dataSource string, dir string) ([]byte, error) {
-	data := fmt.Sprintf("data=%s", dataSource)
-	from := fmt.Sprintf("%s/allresources.tmpl.yaml", dir)
-	out := fmt.Sprintf("%s/allresources.yaml", dir)
-	gomplateCmd := exec.Command("gomplate", `--left-delim="((" --right-delim="))"`, "-d", data, "-f", from, "-o", out)
-
+func runGomplate(dataSource interface{}, pwd string, dir string) ([]byte, error) {
+	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
+	data := fmt.Sprintf("-d data=%s", dataLocation)
+	from := fmt.Sprintf("-f %s/allresources.tmpl.yaml", dir)
+	out := fmt.Sprintf("-o %s/allresources.yaml", dir)
+	gomplateCmd := exec.Command("gomplate", `--left-delim="((" --right-delim="))"`, data, from, out)
+	fmt.Println(gomplateCmd.Args)
 	err := gomplateCmd.Run()
+	var stderr bytes.Buffer
+	gomplateCmd.Stderr = &stderr
+
 	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return nil, err
 	}
 
