@@ -6,7 +6,7 @@ spec:
   template:
     spec:
       containers:
-      - name: odag 
+      - name: main
         env:
         - name: SELF_SIGNING_PRIVATE_KEY 
           value: |

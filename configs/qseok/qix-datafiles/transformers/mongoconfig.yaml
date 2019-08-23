@@ -1,0 +1,15 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: component
+spec:
+  template:
+    spec:
+      containers:
+      - name: main
+        env:
+        - name: MONGO__URI
+          valueFrom:
+            secretKeyRef:
+              key: mongodb-uri
+              name: qliksense-mongoconfig
