@@ -2,6 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
   - generators
-patchesStrategicMerge:
-  - mongodb-secret.yaml
-  - s2sJWT.yaml
+transformers:
+  - transformers
+patches:
+  - path: maincontainer.yaml
+    target:
+      kind: Deployment
+      name: audit
+  - path: s2sJWT.yaml

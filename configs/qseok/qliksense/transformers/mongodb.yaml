@@ -1,0 +1,9 @@
+apiVersion: qlik.com/v1
+kind: SelectivePatch
+metadata:
+  name: mongoconfig
+enabled: false
+patches:
+- path: ../qliksense/mongoconfig.yaml
+  target:
+    kind: Deployment
