@@ -33,32 +33,48 @@ func (p *plugin) Config(
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
+	var env []string
 	var vaultAddressPath, vaultTokenPath interface{}
+	var vaultAddress, vaultToken, ejsonKey string
 	if p.DataSource["vault"] != nil {
 		vaultAddressPath = p.DataSource["vault"].(map[string]interface{})["addressPath"]
 		vaultTokenPath = p.DataSource["vault"].(map[string]interface{})["tokenPath"]
 
-		if vaultAddressPath != "" {
-			os.Setenv("VAULT_ADDR", fmt.Sprintf("%v", vaultAddressPath))
+		if _, err := os.Stat(fmt.Sprintf("%v", vaultAddressPath)); os.IsNotExist(err) {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", vaultAddressPath))
+			if err != nil {
+				return err
+			}
+			vaultAddress = fmt.Sprintf("VAULT_ADDR=%s", string(readBytes))
+			env = append(env, vaultAddress)
 		}
-		if vaultTokenPath != "" {
-			os.Setenv("VAULT_TOKEN", fmt.Sprintf("%v", vaultTokenPath))
+		if _, err := os.Stat(fmt.Sprintf("%v", vaultTokenPath)); os.IsNotExist(err) {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", vaultTokenPath))
+			if err != nil {
+				return err
+			}
+			vaultToken = fmt.Sprintf("VAULT_TOKEN=%s", string(readBytes))
+			env = append(env, vaultToken)
 		}
 	}
 
 	var ejsonPrivateKeyPath interface{}
 	if p.DataSource["ejson"] != nil {
 		ejsonPrivateKeyPath = p.DataSource["ejson"].(map[string]interface{})["privateKeyPath"]
-
-		if ejsonPrivateKeyPath != "" {
-			os.Setenv("EJSON_KEY", fmt.Sprintf("%v", ejsonPrivateKeyPath))
+		if _, err := os.Stat(fmt.Sprintf("%v", ejsonPrivateKeyPath)); err == nil {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", ejsonPrivateKeyPath))
+			if err != nil {
+				return err
+			}
+			ejsonKey = fmt.Sprintf("EJSON_KEY=%s", string(readBytes))
+			env = append(env, ejsonKey)
 		}
 	}
 
 	var dataSource interface{}
-	if os.Getenv("EJSON_KEY") != "" {
+	if ejsonKey != "" {
 		dataSource = p.DataSource["ejson"].(map[string]interface{})["filePath"]
-	} else if os.Getenv("VAULT_ADDR") != "" && os.Getenv("VAULT_TOKEN ") != "" {
+	} else if vaultAddress != "" && vaultToken != "" {
 		dataSource = p.DataSource["vault"].(map[string]interface{})["secretPath"]
 	} else {
 		return errors.New("exit 1")
@@ -75,8 +91,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println(string(yamlByte))
-		file, err := os.Create(dir + "/allresources.tmpl.yaml")
+		file, err := os.Create(dir + "/temp.tmpl.yaml")
 		if err != nil {
 			return err
 		}
@@ -84,36 +99,35 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
-		output, err := runGomplate(dataSource, p.Pwd, dir)
+		output, err := runGomplate(dataSource, p.Pwd, dir, env, file, string(yamlByte))
 		if err != nil {
 			return err
 		}
-		resMap, err := p.rf.NewResMapFromBytes(output)
-		if err != nil {
-			return err
-		}
-		r.Replace(resMap.Resources()[0])
+		res, _ := p.rf.RF().FromBytes(output)
+		r.SetMap(res.Map())
 	}
 	return nil
 }
 
-func runGomplate(dataSource interface{}, pwd string, dir string) ([]byte, error) {
+func runGomplate(dataSource interface{}, pwd string, dir string, env []string, file *os.File, temp string) ([]byte, error) {
 	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
-	data := fmt.Sprintf("--datasource data=%s", dataLocation)
-	from := fmt.Sprintf("-f %s/allresources.tmpl.yaml", dir)
-	out := fmt.Sprintf("-o %s/allresources.yaml", dir)
-	gomplateCmd := exec.Command("gomplate", `--left-delim='(('`, `--right-delim='))'`, data, from, out)
-	fmt.Println(gomplateCmd.Args)
+	data := fmt.Sprintf(`--datasource=data=%s`, dataLocation)
+	from := fmt.Sprintf(`--in=%s`, temp)
+
+	gomplateCmd := exec.Command("gomplate", `--left-delim=((`, `--right-delim=))`, data, from)
+
+	gomplateCmd.Env = append(os.Environ(), env...)
+
+	var out bytes.Buffer
+	gomplateCmd.Stdout = &out
 	err := gomplateCmd.Run()
-	var stderr bytes.Buffer
-	gomplateCmd.Stderr = &stderr
 
 	if err != nil {
-		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return nil, err
 	}
-
-	gomplatedBytes, err := ioutil.ReadFile(out)
-
-	return gomplatedBytes, nil
+	err = os.RemoveAll(dir)
+	if err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
 }
