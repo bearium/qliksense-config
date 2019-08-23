@@ -4,6 +4,6 @@ metadata:
   name: mongoconfig
 enabled: false
 patches:
-- path: ../qliksense/mongoconfig.yaml
+- path: ../qliksense/transformers/mongoconfig.yaml
   target:
     kind: Deployment
