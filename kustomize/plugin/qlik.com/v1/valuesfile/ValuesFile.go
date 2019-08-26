@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -30,10 +31,12 @@ func (p *plugin) Config(
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
+	fmt.Println(p.Root)
+	fmt.Println(p.ValuesFile)
 	filePath := filepath.Join(p.Root, p.ValuesFile)
-
+	fmt.Println(filePath)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return errors.New("Error: values.tml.yaml is not found")
+		return errors.New("Error: values.tmpl.yaml is not found")
 	}
 
 	fileData, err := ioutil.ReadFile(filePath)

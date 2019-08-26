@@ -7,66 +7,58 @@ import (
 	plugins_test "sigs.k8s.io/kustomize/v3/pkg/plugins/test"
 )
 
-func TestDatePrefixerPlugin(t *testing.T) {
+func TestStrategicMergePatch(t *testing.T) {
 	tc := plugins_test.NewEnvForTest(t).Set()
 	defer tc.Reset()
 
 	tc.BuildGoPlugin(
 		"qlik.com", "v1", "ValuesFile")
+
 	th := kusttest_test.NewKustTestPluginHarness(t, "/app")
 
-	th.WriteF("/app/values.tmpl.yaml", `
-values:
-  config:
-	accessControl:
-	  testing: 4321
-	qix-sessions:
-	  testing: true
+	th.WriteF("/app/patch.yaml", `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qliksense
+spec:
+  template:
+    metadata:
+      labels:
+        working: true
 `)
 
-	// make temp directory chartHome
-	m := th.LoadAndRunTransformer(`
+	rm := th.LoadAndRunTransformer(`
 apiVersion: qlik.com/v1
 kind: ValuesFile
 metadata:
-  name: collections
-valuesFile: "values.tmpl.yaml"`, `
-apiVersion: apps/v1
-kind: HelmChart
+  name: qliksense
+enabled: true
+valuesFile: patch.yaml
+target:
+  name: qliksense
+`,
+		`apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: qliksense
-values:
-  config:
-    accessControl:
-      testing: 4321
-  qix-sessions:
-    testing: true
-`)
+spec:
+  template:
+    metadata:
+      labels:
+        working: false
+`,
+	)
 
-	// insure output of yaml is correct
-	th.AssertActualEqualsExpected(m, `
+	th.AssertActualEqualsExpected(rm, `
 apiVersion: apps/v1
-chartName: qliksense
-kind: HelmChart
+kind: Deployment
 metadata:
   name: qliksense
-releaseName: qliksense
-values:
-  config:
-    accessControl:
-      testing: 4321
-  qix-sessions:
-    testing: true
----
-apiVersion: apps/v1
-chartName: qix-sessions
-kind: HelmChart
-metadata:
-  name: qix-sessions
-releaseName: qliksense
-values:
-  qix-sessions:
-    testing: true
+spec:
+  template:
+    metadata:
+      labels:
+        working: true
 `)
-
 }
