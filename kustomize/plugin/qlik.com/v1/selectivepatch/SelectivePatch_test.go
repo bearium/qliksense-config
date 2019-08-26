@@ -20,7 +20,7 @@ func TestPatchTransformerFromFiles(t *testing.T) {
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: qliksense-config
+  name: qliksense
 spec:
   template:
     metadata:
@@ -33,31 +33,32 @@ apiVersion: qlik.com/v1
 kind: SelectivePatch
 metadata:
   name: qliksense
+enabled: true
 path: patch.yaml
 target:
-  name: .*Deploy
+  name: qliksense
 `,
 		`apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: qliksense
-kind: Deployment
 spec:
   template:
-	metadata:
-	  labels:
-		working: false
+    metadata:
+      labels:
+        working: false
 `,
 	)
 
 	th.AssertActualEqualsExpected(rm, `
 apiVersion: apps/v1
-metadata:
-  name: qliksense-config
 kind: Deployment
+metadata:
+  name: qliksense
 spec:
   template:
-	metadata:
-	  labels:
-		working: true
+    metadata:
+      labels:
+        working: true
 `)
 }
