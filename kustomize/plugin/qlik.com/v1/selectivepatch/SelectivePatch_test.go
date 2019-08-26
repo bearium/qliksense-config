@@ -7,7 +7,7 @@ import (
 	plugins_test "sigs.k8s.io/kustomize/v3/pkg/plugins/test"
 )
 
-func TestPatchTransformerFromFiles(t *testing.T) {
+func TestStrategicMergePatch(t *testing.T) {
 	tc := plugins_test.NewEnvForTest(t).Set()
 	defer tc.Reset()
 
