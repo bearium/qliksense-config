@@ -2,6 +2,7 @@ package builtin
 
 import (
 	"fmt"
+	"path/filepath"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/pkg/errors"
@@ -37,8 +38,9 @@ func (p *plugin) Config(
 		return nil
 	}
 
+	loadPath := filepath.Join(ldr.Root(), p.Path)
 	//load the patch
-	patch, err := ldr.Load(p.Path)
+	patch, err := ldr.Load(loadPath)
 	if err != nil {
 		return err
 	}
@@ -55,6 +57,10 @@ func (p *plugin) Config(
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
+
+	if !p.Enabled {
+		return nil
+	}
 
 	if p.Target == nil {
 		return nil
