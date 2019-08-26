@@ -2,11 +2,9 @@ package main
 
 import (
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"os"
 	"path/filepath"
 
+	"github.com/imdario/mergo"
 	"sigs.k8s.io/kustomize/v3/pkg/ifc"
 	"sigs.k8s.io/kustomize/v3/pkg/resmap"
 	"sigs.k8s.io/yaml"
@@ -30,19 +28,26 @@ func (p *plugin) Config(
 	return yaml.Unmarshal(c, p)
 }
 
-func (p *plugin) Transform(m resmap.ResMap) error {
-	fmt.Println(p.Root)
-	fmt.Println(p.ValuesFile)
-	filePath := filepath.Join(p.Root, p.ValuesFile)
-	fmt.Println(filePath)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		return errors.New("Error: values.tmpl.yaml is not found")
+func mergeFiles(orig map[string]interface{}, tmpl map[string]interface{}) (map[string]interface{}, error) {
+	var mergedData = orig
+
+	err := mergo.Merge(&mergedData, tmpl)
+	if err != nil {
+		return nil, err
 	}
 
-	fileData, err := ioutil.ReadFile(filePath)
+	return mergedData, nil
+}
+
+func (p *plugin) Transform(m resmap.ResMap) error {
+
+	filePath := filepath.Join(p.Root, p.ValuesFile)
+
+	fileData, err := p.ldr.Load(filePath)
 	if err != nil {
-		return err
+		return errors.New("Error: values.tml.yaml is not found")
 	}
+
 	resMap, err := p.rf.NewResMapFromBytes(fileData)
 	if err != nil {
 		return err
@@ -52,7 +57,11 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return errors.New("Error: Not a valid yaml file")
 		}
-		r.Merge(resMap.Resources()[0])
+		mergedFile, err := mergeFiles(r.Map(), resMap.Resources()[0].Map())
+		if err != nil {
+			return err
+		}
+		r.SetMap(mergedFile)
 	}
 
 	return nil

@@ -16,16 +16,19 @@ func TestStrategicMergePatch(t *testing.T) {
 
 	th := kusttest_test.NewKustTestPluginHarness(t, "/app")
 
-	th.WriteF("/app/patch.yaml", `
-apiVersion: apps/v1
-kind: Deployment
+	th.WriteF("/app/values.tml.yaml", `
+apiVersion: app/v1
+kind: HelmValues
 metadata:
-  name: qliksense
-spec:
-  template:
-    metadata:
-      labels:
-        working: true
+  name: collections
+values:
+  config:
+    accessControl:
+      testing: 1234
+    qix-sessions:
+      testing: true
+    test123:
+      working: 123
 `)
 
 	rm := th.LoadAndRunTransformer(`
@@ -34,31 +37,31 @@ kind: ValuesFile
 metadata:
   name: qliksense
 enabled: true
-valuesFile: patch.yaml
-target:
-  name: qliksense
+valuesFile: values.tml.yaml
 `,
 		`apiVersion: apps/v1
-kind: Deployment
+kind: HelmValues
 metadata:
-  name: qliksense
-spec:
-  template:
-    metadata:
-      labels:
-        working: false
+  name: collections
+values:
+  config:
+    qix-sessions:
+      testing: false
 `,
 	)
 
 	th.AssertActualEqualsExpected(rm, `
 apiVersion: apps/v1
-kind: Deployment
+kind: HelmValues
 metadata:
-  name: qliksense
-spec:
-  template:
-    metadata:
-      labels:
-        working: true
+  name: collections
+values:
+  config:
+    accessControl:
+      testing: 1234
+    qix-sessions:
+      testing: true
+    test123:
+      working: 123
 `)
 }
