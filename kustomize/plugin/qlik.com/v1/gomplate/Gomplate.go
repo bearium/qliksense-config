@@ -99,7 +99,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
-		output, err := runGomplate(dataSource, p.Pwd, dir, env, file, string(yamlByte))
+		output, err := runGomplate(dataSource, p.Pwd, dir, env, string(yamlByte))
 		if err != nil {
 			return err
 		}
@@ -109,7 +109,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 	return nil
 }
 
-func runGomplate(dataSource interface{}, pwd string, dir string, env []string, file *os.File, temp string) ([]byte, error) {
+func runGomplate(dataSource interface{}, pwd string, dir string, env []string, temp string) ([]byte, error) {
 	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
 	data := fmt.Sprintf(`--datasource=data=%s`, dataLocation)
 	from := fmt.Sprintf(`--in=%s`, temp)
