@@ -14,9 +14,9 @@ import (
 )
 
 type plugin struct {
-	Enabled             bool           `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Path                string         `json:"path,omitempty" yaml:"path,omitempty"`
-	Target              types.Selector `json:"target,omitempty", yaml:"target,omitempty"`
+	Enabled             bool            `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Path                string          `json:"path,omitempty" yaml:"path,omitempty"`
+	Target              *types.Selector `json:"target,omitempty" yaml:"target,omitempty"`
 	ldr                 ifc.Loader
 	rf                  *resmap.Factory
 	StrategicMergePatch *resource.Resource
@@ -62,13 +62,17 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		return nil
 	}
 
-	if len(p.Target.String()) == 0 {
+	if p.Target == nil {
 		return nil
 	}
+	resources, err := m.Select(*p.Target)
+	if err != nil {
+		return err
+	}
 
-	for _, resource := range m.Resources() {
+	for _, r := range resources {
 		if p.json6902Patch != nil {
-			origObj, err := resource.MarshalJSON()
+			origObj, err := r.MarshalJSON()
 			if err != nil {
 				return err
 			}
@@ -76,14 +80,14 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 			if err != nil {
 				return err
 			}
-			err = resource.UnmarshalJSON(patchedObj)
+			err = r.UnmarshalJSON(patchedObj)
 			if err != nil {
 				return err
 			}
 		}
 		if p.StrategicMergePatch != nil {
 			patchCopy := p.StrategicMergePatch.DeepCopy()
-			err := resource.Patch(patchCopy.Kunstructured)
+			err := r.Patch(patchCopy.Kunstructured)
 			if err != nil {
 				return err
 			}
