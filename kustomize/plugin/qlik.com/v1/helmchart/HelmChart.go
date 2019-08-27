@@ -21,7 +21,6 @@ import (
 type plugin struct {
 	ChartName        string                 `json:"chartName,omitempty" yaml:"chartName,omitempty"`
 	ChartHome        string                 `json:"chartHome,omitempty" yaml:"chartHome,omitempty"`
-	ChartGitUrl      string                 `json:"chartGitUrl,omitempty" yaml:"chartGitUrl,omitempty"`
 	ChartVersion     string                 `json:"chartVersion,omitempty" yaml:"chartVersion,omitempty"`
 	ChartRepo        string                 `json:"chartRepo,omitempty" yaml:"chartRepo,omitempty"`
 	ValuesFrom       string                 `json:"valuesFrom,omitempty" yaml:"valuesFrom,omitempty"`
@@ -56,37 +55,37 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	}
 	dir = path.Join(dir, "../")
 
-	if p.HelmHome == "" || p.HelmHome == "null" {
+	if p.HelmHome == "" {
 		// make home for helm stuff
 		directory := fmt.Sprintf("%s/%s", dir, "dotHelm")
 		p.HelmHome = directory
 	}
 
-	if len(p.ChartHome) == 0 || p.ChartHome == "null" {
+	if len(p.ChartHome) == 0 {
 		// make home for chart stuff
 		directory := fmt.Sprintf("%s/%s", dir, p.ChartName)
 		p.ChartHome = directory
 	}
 
-	if p.HelmBin == "" || p.HelmBin == "null" {
+	if p.HelmBin == "" {
 		p.HelmBin = "helm"
 	}
 
-	if len(p.ChartVersion) > 0 && p.ChartVersion != "null" {
+	if len(p.ChartVersion) > 0 {
 		p.ChartVersionExp = fmt.Sprintf("--version=%s", p.ChartVersion)
 	} else {
 		p.ChartVersionExp = ""
 	}
 
-	if p.ChartRepo == "" || p.ChartRepo == "null" {
+	if p.ChartRepo == "" {
 		p.ChartRepo = "https://kubernetes-charts.storage.googleapis.com"
 	}
 
-	if p.ReleaseName == "" || p.ReleaseName == "null" {
+	if p.ReleaseName == "" {
 		p.ReleaseName = "release-name"
 	}
 
-	if p.ReleaseNamespace == "" || p.ReleaseNamespace == "null" {
+	if p.ReleaseNamespace == "" {
 		p.ReleaseName = "default"
 	}
 
