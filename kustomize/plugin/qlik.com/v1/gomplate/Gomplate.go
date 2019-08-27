@@ -91,14 +91,6 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		if err != nil {
 			return err
 		}
-		file, err := os.Create(dir + "/temp.tmpl.yaml")
-		if err != nil {
-			return err
-		}
-		_, err = file.Write(yamlByte)
-		if err != nil {
-			return err
-		}
 		output, err := runGomplate(dataSource, p.Pwd, dir, env, string(yamlByte))
 		if err != nil {
 			return err
