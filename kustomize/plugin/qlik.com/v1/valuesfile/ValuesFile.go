@@ -84,6 +84,10 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 			env = append(env, ejsonKey)
 		}
 	}
+	if os.Getenv("EJSON_KEY") != "" && ejsonKey == "" {
+		ejsonKey = fmt.Sprintf("EJSON_KEY=%s", os.Getenv("EJSON_KEY"))
+		env = append(env, ejsonKey)
+	}
 
 	var dataSource interface{}
 	if ejsonKey != "" {
