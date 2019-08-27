@@ -40,14 +40,14 @@ errno=0
 TMP_DIR=$(mktemp -d)
 
 allresources=`cat`
-echo "$allresources" | yq r -d $index - &>$TMP_DIR/allresources.tmpl.yaml || errno=$?
-if [ $errno -ne 0 ]; then
-  echo "Not a valid yaml file"
-  exit 1
-fi
-
-export TYPE="plugin" && gomplate --left-delim="((" --right-delim="))" -d data=${dataSource} -f ${TMP_DIR}/allresources.tmpl.yaml -o ${TMP_DIR}/allresources.yaml
-allresources=$(cat ${TMP_DIR}/allresources.yaml)
+while [ $errno -eq 0 ]; do
+  echo "$allresources" | yq r -d $index - &>$TMP_DIR/allresources.tmpl.yaml || errno=$?
+  if [ $errno -eq 0 ]; then
+    gomplate --left-delim="((" --right-delim="))" -d data=${dataSource} -f ${TMP_DIR}/allresources.tmpl.yaml -o ${TMP_DIR}/allresources.yaml
+    allresources=$(echo "$allresources" | yq m -d $index -x - "${TMP_DIR}/allresources.yaml")
+    index=$(expr $index + 1)
+  fi
+done
 rm -rf ${TMP_DIR}
-echo "$allresources" | yq r -d $index -
+echo "$allresources
 
