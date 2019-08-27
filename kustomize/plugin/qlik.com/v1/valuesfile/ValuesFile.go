@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/imdario/mergo"
@@ -11,7 +16,8 @@ import (
 )
 
 type plugin struct {
-	ValuesFile string `json:"valuesFile,omitempty" yaml:"valuesFile,omitempty"`
+	DataSource map[string]interface{} `json:"dataSource,omitempty" yaml:"dataSource,omitempty"`
+	ValuesFile string                 `json:"valuesFile,omitempty" yaml:"valuesFile,omitempty"`
 	Root       string
 	ldr        ifc.Loader
 	rf         *resmap.Factory
@@ -41,6 +47,53 @@ func mergeFiles(orig map[string]interface{}, tmpl map[string]interface{}) (map[s
 
 func (p *plugin) Transform(m resmap.ResMap) error {
 
+	var env []string
+	var vaultAddressPath, vaultTokenPath interface{}
+	var vaultAddress, vaultToken, ejsonKey string
+	if p.DataSource["vault"] != nil {
+		vaultAddressPath = p.DataSource["vault"].(map[string]interface{})["addressPath"]
+		vaultTokenPath = p.DataSource["vault"].(map[string]interface{})["tokenPath"]
+
+		if _, err := os.Stat(fmt.Sprintf("%v", vaultAddressPath)); os.IsNotExist(err) {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", vaultAddressPath))
+			if err != nil {
+				return err
+			}
+			vaultAddress = fmt.Sprintf("VAULT_ADDR=%s", string(readBytes))
+			env = append(env, vaultAddress)
+		}
+		if _, err := os.Stat(fmt.Sprintf("%v", vaultTokenPath)); os.IsNotExist(err) {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", vaultTokenPath))
+			if err != nil {
+				return err
+			}
+			vaultToken = fmt.Sprintf("VAULT_TOKEN=%s", string(readBytes))
+			env = append(env, vaultToken)
+		}
+	}
+
+	var ejsonPrivateKeyPath interface{}
+	if p.DataSource["ejson"] != nil {
+		ejsonPrivateKeyPath = p.DataSource["ejson"].(map[string]interface{})["privateKeyPath"]
+		if _, err := os.Stat(fmt.Sprintf("%v", ejsonPrivateKeyPath)); err == nil {
+			readBytes, err := ioutil.ReadFile(fmt.Sprintf("%v", ejsonPrivateKeyPath))
+			if err != nil {
+				return err
+			}
+			ejsonKey = fmt.Sprintf("EJSON_KEY=%s", string(readBytes))
+			env = append(env, ejsonKey)
+		}
+	}
+
+	var dataSource interface{}
+	if ejsonKey != "" {
+		dataSource = p.DataSource["ejson"].(map[string]interface{})["filePath"]
+	} else if vaultAddress != "" && vaultToken != "" {
+		dataSource = p.DataSource["vault"].(map[string]interface{})["secretPath"]
+	} else {
+		return errors.New("exit 1")
+	}
+
 	filePath := filepath.Join(p.Root, p.ValuesFile)
 
 	fileData, err := p.ldr.Load(filePath)
@@ -53,16 +106,43 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		return err
 	}
 	for _, r := range m.Resources() {
-		_, err := r.AsYAML()
+		// gomplate the initial values file first
+		yamlByte, err := r.AsYAML()
 		if err != nil {
 			return errors.New("Error: Not a valid yaml file")
 		}
+		output, err := runGomplate(dataSource, p.Root, env, string(yamlByte))
+		if err != nil {
+			return err
+		}
+		res, _ := p.rf.RF().FromBytes(output)
+		r.SetMap(res.Map())
+		// now merge the tmp values into the new formated values
 		mergedFile, err := mergeFiles(r.Map(), resMap.Resources()[0].Map())
 		if err != nil {
 			return err
 		}
 		r.SetMap(mergedFile)
+
+	}
+	return nil
+}
+
+func runGomplate(dataSource interface{}, pwd string, env []string, temp string) ([]byte, error) {
+	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
+	data := fmt.Sprintf(`--datasource=data=%s`, dataLocation)
+	from := fmt.Sprintf(`--in=%s`, temp)
+
+	gomplateCmd := exec.Command("gomplate", `--left-delim=((`, `--right-delim=))`, data, from)
+
+	gomplateCmd.Env = append(os.Environ(), env...)
+
+	var out bytes.Buffer
+	gomplateCmd.Stdout = &out
+	err := gomplateCmd.Run()
+	if err != nil {
+		return nil, err
 	}
 
-	return nil
+	return out.Bytes(), nil
 }
