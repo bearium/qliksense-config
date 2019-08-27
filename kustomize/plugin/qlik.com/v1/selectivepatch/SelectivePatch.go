@@ -14,9 +14,9 @@ import (
 )
 
 type plugin struct {
-	Enabled             bool            `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	Path                string          `json:"path,omitempty" yaml:"path,omitempty"`
-	Target              *types.Selector `json:"target,omitempty", yaml:"target,omitempty"`
+	Enabled             bool           `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	Path                string         `json:"path,omitempty" yaml:"path,omitempty"`
+	Target              types.Selector `json:"target,omitempty", yaml:"target,omitempty"`
 	ldr                 ifc.Loader
 	rf                  *resmap.Factory
 	StrategicMergePatch *resource.Resource
@@ -62,7 +62,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		return nil
 	}
 
-	if p.Target == nil {
+	if len(p.Target.String()) == 0 {
 		return nil
 	}
 
