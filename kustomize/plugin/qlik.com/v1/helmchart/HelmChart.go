@@ -99,7 +99,7 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 			return nil, err
 		}
 	}
-	err = os.RemoveAll(p.ChartHome + "/requirements")
+	err = deleteRequirements(p.ChartHome)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +121,35 @@ func (p *plugin) Generate() (resmap.ResMap, error) {
 	}
 
 	return p.rf.NewResMapFromBytes(templatedYaml)
+}
+
+func deleteRequirements(dir string) error {
+
+	d, err := os.Open(dir)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+
+	files, err := d.Readdir(-1)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if file.Mode().IsRegular() {
+			ext := filepath.Ext(file.Name())
+			name := file.Name()[0 : len(file.Name())-len(ext)]
+			if name == "requirements" {
+				err := os.Remove(dir + "/" + file.Name())
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p *plugin) initHelm() error {
@@ -202,9 +231,12 @@ func (p *plugin) templateHelm() ([]byte, error) {
 	}
 
 	var out bytes.Buffer
+	var stderr bytes.Buffer
 	helmCmd.Stdout = &out
+	helmCmd.Stderr = &stderr
 	err = helmCmd.Run()
 	if err != nil {
+		fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		return nil, err
 	}
 	return out.Bytes(), nil
