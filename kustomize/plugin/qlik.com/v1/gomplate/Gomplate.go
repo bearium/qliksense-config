@@ -84,18 +84,13 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 		return errors.New("exit 1")
 	}
 
-	dir, err := ioutil.TempDir("", "temp")
-	if err != nil {
-		return err
-	}
-
 	for _, r := range m.Resources() {
 
 		yamlByte, err := r.AsYAML()
 		if err != nil {
 			return err
 		}
-		output, err := runGomplate(dataSource, p.Pwd, dir, env, string(yamlByte))
+		output, err := runGomplate(dataSource, p.Pwd, env, string(yamlByte))
 		if err != nil {
 			return err
 		}
@@ -105,7 +100,7 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 	return nil
 }
 
-func runGomplate(dataSource interface{}, pwd string, dir string, env []string, temp string) ([]byte, error) {
+func runGomplate(dataSource interface{}, pwd string, env []string, temp string) ([]byte, error) {
 	dataLocation := filepath.Join(pwd, fmt.Sprintf("%v", dataSource))
 	data := fmt.Sprintf(`--datasource=data=%s`, dataLocation)
 	from := fmt.Sprintf(`--in=%s`, temp)
@@ -118,10 +113,6 @@ func runGomplate(dataSource interface{}, pwd string, dir string, env []string, t
 	gomplateCmd.Stdout = &out
 	err := gomplateCmd.Run()
 
-	if err != nil {
-		return nil, err
-	}
-	err = os.RemoveAll(dir)
 	if err != nil {
 		return nil, err
 	}
