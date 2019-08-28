@@ -2,27 +2,24 @@ Argo Image [![CircleCI](https://circleci.com/gh/qlik-oss/qliksense.svg?style=svg
 
 # Qlik Sense Enterprise on Kubernetes
 
-## Installation of kustomize
+## Installation of kustomize and build plugins
 
-THe version of kustomize being using is v3.x , can be installed with Homebrew:
+The version of kustomize being using is v3.1.0, use the make command
 
- `brew install kustomize`
+`make install`
 
-You will also need (the go version of) yq installed, available from here (https://mikefarah.github.io/yq/])
- 
- `brew install yq`
+to install both kustomize and build the required plugins to run kustomize. As well the built plugins will be moved to your `$HOME/.config/kustomize` folder or to `$XDG_CONFIG_HOME` if set.
 
 Finally, you will need helm,
 
  `brew install kubernetes-helm`
- 
- 
-Create a convienience function that points to the root of this cloned repo:
 
-```
+Create a convenient function that points to the root of this cloned repo:
+
+``` bash
 function kustomizeIt {
-  XDG_CONFIG_HOME="<Parent directory of this locally cloned repo>"
-  kustomize build --enable_alpha_plugins $1
+  kustomize build --enable_alpha_plugins \
+    "<Root of this repo>"/$1
 }
 ```
 
