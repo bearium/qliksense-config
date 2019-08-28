@@ -1,4 +1,4 @@
-module github.com/qlik-trial/kustomize-plugins/kustomize/plugin/qlik.com/v1/charthomefullpath
+module github.com/qlik-trial/qliksense-config/kustomize/plugin/qlik.com/v1/charthomefullpath
 
 go 1.12
 
