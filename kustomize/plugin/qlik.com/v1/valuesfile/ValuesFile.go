@@ -46,7 +46,6 @@ func mergeFiles(orig map[string]interface{}, tmpl map[string]interface{}) (map[s
 }
 
 func (p *plugin) Transform(m resmap.ResMap) error {
-
 	var env []string
 	var vaultAddressPath, vaultTokenPath interface{}
 	var vaultAddress, vaultToken, ejsonKey string
@@ -99,36 +98,38 @@ func (p *plugin) Transform(m resmap.ResMap) error {
 	}
 
 	filePath := filepath.Join(p.Root, p.ValuesFile)
-
-	fileData, err := p.ldr.Load(filePath)
+	fileData, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return errors.New("Error: values.tml.yaml is not found")
 	}
 
-	resMap, err := p.rf.NewResMapFromBytes(fileData)
 	if err != nil {
 		return err
 	}
 	for _, r := range m.Resources() {
 		// gomplate the initial values file first
-		yamlByte, err := r.AsYAML()
+		_, err := r.AsYAML()
 		if err != nil {
 			return errors.New("Error: Not a valid yaml file")
 		}
-		output, err := runGomplate(dataSource, p.Root, env, string(yamlByte))
+		output, err := runGomplate(dataSource, p.Root, env, string(fileData))
 		if err != nil {
 			return err
 		}
-		res, _ := p.rf.RF().FromBytes(output)
-		r.SetMap(res.Map())
-		// now merge the tmp values into the new formated values
-		mergedFile, err := mergeFiles(r.Map(), resMap.Resources()[0].Map())
+		var Values map[string]interface{}
+		err = yaml.Unmarshal(output, &Values)
+		if err != nil {
+			return err
+		}
+		ValuePrefixed := map[string]interface{}{"values": Values}
+
+		mergedFile, err := mergeFiles(r.Map(), ValuePrefixed)
 		if err != nil {
 			return err
 		}
 		r.SetMap(mergedFile)
-
 	}
+
 	return nil
 }
 
