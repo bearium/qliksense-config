@@ -1,0 +1,16 @@
+apiVersion: qlik.com/v1
+kind: HelmValues
+metadata:
+  name: qliksense
+values:
+  licenses:
+    tokenAuth:
+      ## tokenAuth.privateKey Private key used to sign auth token
+      privateKey: |
+        -----BEGIN EC PRIVATE KEY-----
+        MIGkAgEBBDD5BGFKQX981pUj+dwaJqn3TlMeSfPQxHVCKJlfKwBnhr6xjWaEH0ej
+        pS3nTQwNmUSgBwYFK4EEACKhZANiAAS2IWhY4cJjhKv/rCVq64ORQ01Y56PvoCO3
+        Vg23AduOLe/N0IKPedki7uWX73onXZz5yIS2GiTAWKkapoA2QLnHWOrC3wckz7AW
+        AjJtggeoCvTUhJmG6LY9SCJAwEO8xuM=
+        -----END EC PRIVATE KEY-----
+      kid: "_WChJV76hqP6rsnPFV44TNYUR1l4jweS612XuTMopz0"

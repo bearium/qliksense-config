@@ -1,0 +1,20 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: audit
+spec:
+  template:
+    spec:
+      containers:
+      - name: main
+        env:
+        - name: TOKEN_AUTH_PRIVATE_KEY
+          value: |
+            -----BEGIN EC PRIVATE KEY-----
+            MIGkAgEBBDAIjTfnfDoa9CeEIrlXJpZwc+Le1Hbh7LwooQh9YbpdBw5nIQORGAI0
+            EsGEiUPDiMqgBwYFK4EEACKhZANiAATs3JLJEL1y7pUQ6u1eOhJ3M5BVRPZRQ4du
+            ouRsRM/wkAb+OlMAsyFZCuEgtDF14G/2RY4gepUkARBFCgEO0E3WarSEHQMS26pN
+            fkRHHEUAaOvT6vP4+BqgQmh+0MbStKI=
+            -----END EC PRIVATE KEY-----
+        - name: TOKEN_AUTH_KID
+          value: "V5uEI2x2sYjIq0Ezz7NlqoExS1Y4dvwhdt3iakflxGY"

@@ -1,0 +1,15 @@
+apiVersion: qlik.com/v1
+kind: HelmValues
+metadata:
+  name: qliksense
+values:
+  identity-providers:
+    serviceJwt:
+      jwtPrivateKey: |
+        -----BEGIN EC PRIVATE KEY-----
+        MIGkAgEBBDDwBplmhjc1/546O/qlQTiS4pP3IQMWJIquC5nyDtjulkKQ7qKc2ngG
+        kiCavKA3fNGgBwYFK4EEACKhZANiAARx06B1GyQvjJBxx6WSdk8gLOyOmN6QGJR8
+        HMEbhxEdDeylwOn+zTnIGSKIfh7XLZ0F6s2vFGrFgSi0co13MN2L6pycDWMlQt09
+        P2dYXnDNaxjB4BhL6Vu6pbOMLu5pvvw=
+        -----END EC PRIVATE KEY-----
+      keyId: JYJ4SoPYPN8JWQR7UBuE2orr1rZEFSc53ARC0e1ldVo

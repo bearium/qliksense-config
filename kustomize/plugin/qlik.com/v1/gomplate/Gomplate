@@ -10,7 +10,7 @@ ejsonDataSource=`yq r "$file" dataSource.ejson`
 if [[ "${vaultDataSource}" != "null" ]]; then
   vaultAddressPath=$(echo $(eval echo $(yq r "$file" dataSource.vault.addressPath)))
   vaultTokenPath=$(echo $(eval echo $(yq r "$file" dataSource.vault.tokenPath)))
-
+   
   if [[ ! -z "$vaultAddressPath" ]] || [[ "$vaultAddressPath" != "null" ]] && [[ -f ${vaultAddressPath} ]]; then
     export VAULT_ADDR=$(cat ${vaultAddressPath})
   fi
@@ -21,14 +21,14 @@ if [[ "${vaultDataSource}" != "null" ]]; then
 fi
 
 if [[ "${ejsonDataSource}" != "null" ]]; then
-  ejsonPrivateKeyPath=$(echo $(eval echo $(yq r "$file" dataSource.ejson.privateKeyPath)))
+  ejsonPrivateKeyPath=$(echo $(eval echo $(yq r "$file" dataSource.ejson.privateKeyPath)))  
   if [[ ! -z "${ejsonPrivateKeyPath}" ]] || [[ "${ejsonPrivateKeyPath}" != "null" ]] && [[ -f "$ejsonPrivateKeyPath" ]]; then
      export EJSON_KEY=$(cat "$ejsonPrivateKeyPath")
   fi
 fi
 
 if [[ ! -z $EJSON_KEY ]]; then
-  dataSource=`yq r "$file" dataSource.ejson.filePath`
+  dataSource=`yq r "$file" dataSource.ejson.filePath` 
 elif [[ ! -z $VAULT_ADDR ]] && [[ ! -z $VAULT_TOKEN ]]; then
   dataSource=`yq r "$file" dataSource.vault.secretPath`
 else
@@ -40,13 +40,14 @@ errno=0
 TMP_DIR=$(mktemp -d)
 
 allresources=`cat`
-echo "$allresources" | yq r -d $index - &>$TMP_DIR/allresources.tmpl.yaml || errno=$?
-if [ $errno -ne 0 ]; then
-  echo "Not a valid yaml file"
-  exit 1
-fi
-
-gomplate --left-delim="((" --right-delim="))" -d data=${dataSource} -f ${TMP_DIR}/allresources.tmpl.yaml -o ${TMP_DIR}/allresources.yaml
-allresources=$(cat ${TMP_DIR}/allresources.yaml)
+while [ $errno -eq 0 ]; do
+  echo "$allresources" | yq r -d $index - &>$TMP_DIR/allresources.tmpl.yaml || errno=$?
+  if [ $errno -eq 0 ]; then
+    gomplate --left-delim="((" --right-delim="))" -d data=${dataSource} -f ${TMP_DIR}/allresources.tmpl.yaml -o ${TMP_DIR}/allresources.yaml
+    allresources=$(echo "$allresources" | yq m -d $index -x - "${TMP_DIR}/allresources.yaml")
+    index=$(expr $index + 1)
+  fi
+done
 rm -rf ${TMP_DIR}
-echo "$allresources" | yq r -d $index -
+echo "$allresources
+
